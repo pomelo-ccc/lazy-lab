@@ -1,0 +1,19 @@
+<nz-layout class="layout-root">
+  <nz-sider nzTheme="light" [nzWidth]="240">
+    <div class="brand">Angular21 + ng-zorro 懒加载实验</div>
+    <ul nz-menu nzMode="inline">
+      @for (entry of menuEntries; track entry.path) {
+        <li nz-menu-item [routerLink]="entry.path" routerLinkActive="ant-menu-item-selected">
+          {{ entry.label }}
+        </li>
+      }
+    </ul>
+  </nz-sider>
+
+  <nz-layout>
+    <nz-header class="header">Runtime 懒加载改造实验</nz-header>
+    <nz-content class="content">
+      <router-outlet></router-outlet>
+    </nz-content>
+  </nz-layout>
+</nz-layout>
