@@ -6,7 +6,9 @@ import { AuditEventsActions } from '../../modules/events/audit-events.actions';
 
 import { syncEntry } from './event-manifest.utils';
 
-export function createAuditEventManifest(injector: Injector): ReadonlyArray<SyncEventManifestEntry> {
+export function createAuditSyncEventManifest(
+  injector: Injector
+): ReadonlyArray<SyncEventManifestEntry> {
   const audit = injector.get(AuditEventsActions);
 
   return [

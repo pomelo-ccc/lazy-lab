@@ -6,7 +6,9 @@ import { NotificationEventsActions } from '../../modules/events/notification-eve
 
 import { syncEntry } from './event-manifest.utils';
 
-export function createNotificationEventManifest(injector: Injector): ReadonlyArray<SyncEventManifestEntry> {
+export function createNotificationSyncEventManifest(
+  injector: Injector
+): ReadonlyArray<SyncEventManifestEntry> {
   const notification = injector.get(NotificationEventsActions);
 
   return [

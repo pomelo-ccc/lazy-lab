@@ -5,12 +5,16 @@ import { EventHandler } from '../../core/event-contract';
 import { EventManifestEntry } from '../../core/event-registry';
 import { EVENT_ID, EventId } from '../../type/event-id';
 
-export function createUserProfileEventManifest(injector: Injector): ReadonlyArray<EventManifestEntry> {
+const path = () => import('../../features/user-profile/user-profile-viewed.event');
+
+export function createUserProfileLazyEventManifest(
+  injector: Injector
+): ReadonlyArray<EventManifestEntry> {
   return [
     {
       id: EVENT_ID.userProfileViewed,
       loader: () =>
-        defer(() => import('../../features/user-profile/user-profile-viewed.event')).pipe(
+        defer(path).pipe(
           map((module) => module.userProfileViewedEvent as unknown as EventHandler<EventId>)
         )
     }

@@ -2,13 +2,29 @@ import { Injector } from '@angular/core';
 
 import { EventManifestEntry, SyncEventManifestEntry } from '../../core/event-registry';
 
-import { createTableEventManifest }       from './table.manifest';
-import { createOrderEventManifest }       from './order.manifest';
-import { createCustomerEventManifest }    from './customer.manifest';
-import { createProductEventManifest }     from './product.manifest';
-import { createUserProfileEventManifest } from './user-profile.manifest';
-import { createNotificationEventManifest } from './notification.manifest';
-import { createAuditEventManifest }       from './audit.manifest';
+import { createTableLazyEventManifest }       from './table.manifest';
+import { createOrderLazyEventManifest }       from './order.manifest';
+import { createCustomerLazyEventManifest }    from './customer.manifest';
+import { createProductLazyEventManifest }     from './product.manifest';
+import { createUserProfileLazyEventManifest } from './user-profile.manifest';
+import { createNotificationSyncEventManifest } from './notification.manifest';
+import { createAuditSyncEventManifest }       from './audit.manifest';
+
+type LazyEventManifestFactory = (injector: Injector) => ReadonlyArray<EventManifestEntry>;
+type SyncEventManifestFactory = (injector: Injector) => ReadonlyArray<SyncEventManifestEntry>;
+
+const lazyEventManifestFactories: ReadonlyArray<LazyEventManifestFactory> = [
+  createTableLazyEventManifest,
+  createOrderLazyEventManifest,
+  createCustomerLazyEventManifest,
+  createProductLazyEventManifest,
+  createUserProfileLazyEventManifest,
+];
+
+const syncEventManifestFactories: ReadonlyArray<SyncEventManifestFactory> = [
+  createNotificationSyncEventManifest,
+  createAuditSyncEventManifest,
+];
 
 // ─── 懒加载事件清单 ───────────────────────────────────────────────────────────
 //
@@ -18,13 +34,7 @@ import { createAuditEventManifest }       from './audit.manifest';
 export function createRuntimeLazyEventManifest(
   injector: Injector
 ): ReadonlyArray<EventManifestEntry> {
-  return [
-    ...createTableEventManifest(injector),
-    ...createOrderEventManifest(injector),
-    ...createCustomerEventManifest(injector),
-    ...createProductEventManifest(injector),
-    ...createUserProfileEventManifest(injector),
-  ];
+  return lazyEventManifestFactories.flatMap((createManifest) => createManifest(injector));
 }
 
 // ─── 同步事件清单 ─────────────────────────────────────────────────────────────
@@ -35,8 +45,5 @@ export function createRuntimeLazyEventManifest(
 export function createRuntimeSyncEventManifest(
   injector: Injector
 ): ReadonlyArray<SyncEventManifestEntry> {
-  return [
-    ...createNotificationEventManifest(injector),
-    ...createAuditEventManifest(injector),
-  ];
+  return syncEventManifestFactories.flatMap((createManifest) => createManifest(injector));
 }

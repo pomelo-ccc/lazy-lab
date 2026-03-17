@@ -1,20 +1,24 @@
-import { Injector } from '@angular/core';
-
-import { EventManifestEntry } from '../../core/event-registry';
 import { EVENT_ID } from '../../type/event-id';
 
-import { domainEntries } from './event-manifest.utils';
+import { createLazyEventManifestFactory } from './event-manifest.utils';
 
-export function createTableEventManifest(injector: Injector): ReadonlyArray<EventManifestEntry> {
-  return domainEntries(
-    () => import('../../modules/events/table-events.actions').then(m => m.TableEventsActions),
-    injector,
-    [
-      EVENT_ID.reloadTable,
-      EVENT_ID.exportRows,
-      EVENT_ID.archiveRows,
-      EVENT_ID.printRows,
-      EVENT_ID.batchDelete,
-    ]
-  );
-}
+const path = () => import('../../modules/events/table-events.actions');
+
+const eventGroup = {
+  query: [
+    EVENT_ID.reloadTable,
+  ],
+  export: [
+    EVENT_ID.exportRows,
+    EVENT_ID.printRows,
+  ],
+  bulkMutation: [
+    EVENT_ID.archiveRows,
+    EVENT_ID.batchDelete,
+  ]
+} as const;
+
+export const createTableLazyEventManifest = createLazyEventManifestFactory(
+  path,
+  eventGroup
+);
