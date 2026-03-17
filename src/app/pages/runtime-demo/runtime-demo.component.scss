@@ -4,6 +4,7 @@
 }
 
 .hero-card,
+.example-card,
 .runtime-grid nz-card {
   border-radius: 18px;
 }
@@ -36,4 +37,18 @@
 
 .runtime-slot {
   min-height: 180px;
+}
+
+.example-preview {
+  min-height: 120px;
+  padding: 16px;
+  border: 1px dashed #d6e4ff;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fcfdff 0%, #f4f8ff 100%);
+}
+
+.slot-state {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
 }

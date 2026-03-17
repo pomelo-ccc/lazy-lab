@@ -1,6 +1,5 @@
-import { JsonPipe, NgComponentOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { finalize, take } from 'rxjs';
+import { JsonPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -9,9 +8,12 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzTypographyModule } from 'ng-zorro-antd/typography';
 
-import { createRuntimeContext } from '../../runtime/core/runtime-context';
-import { ComponentRenderResponse } from '../../runtime/core/render-contract';
-import { RenderService } from '../../runtime/render/render.service';
+import { RuntimeDynamicComponent } from '../../runtime/render/runtime-component.component';
+import {
+  ComponentEmptyDirective,
+  ComponentErrorDirective,
+  ComponentLoadingDirective
+} from '../../runtime/render/runtime-component-slots.directive';
 import { COMPONENT_ID } from '../../runtime/type/component-id';
 import { EVENT_ID } from '../../runtime/type/event-id';
 import { RuntimeTableConfig } from '../../runtime/type/runtime-table-config';
@@ -23,26 +25,49 @@ interface TableScene {
   readonly config: RuntimeTableConfig;
 }
 
+const COMPONENT_USAGE_SNIPPET = `<component
+  is="user-profile-card"
+  [props]="{ userId: 'u001' }"
+  source="runtime-demo:example-user-profile"
+></component>`;
+
+const COMPONENT_SLOT_USAGE_SNIPPET = `<component
+  [is]="COMPONENT_ID.runtimeTable"
+  [props]="{ config: scene.config }"
+  [key]="componentKeyMap()[scene.key] ?? 0"
+>
+  <ng-template componentLoading let-is="is">
+    <nz-tag nzColor="processing">自定义 loading: {{ is }}</nz-tag>
+  </ng-template>
+
+  <ng-template componentError let-error="error">
+    <nz-alert nzType="error" [nzDescription]="error" nzShowIcon></nz-alert>
+  </ng-template>
+</component>`;
+
 @Component({
   standalone: true,
   selector: 'app-runtime-demo',
   imports: [
     JsonPipe,
-    NgComponentOutlet,
     NzAlertModule,
     NzButtonModule,
     NzCardModule,
     NzEmptyModule,
     NzTagModule,
-    NzTypographyModule
+    NzTypographyModule,
+    RuntimeDynamicComponent,
+    ComponentLoadingDirective,
+    ComponentErrorDirective,
+    ComponentEmptyDirective
   ],
   template: `
     <section class="runtime-demo-page">
       <nz-card class="hero-card">
         <h2 nz-typography>Table / Toolbar / Button Runtime</h2>
         <p nz-typography>
-          页面只持有 <code>table componentId</code> 和配置。table 会根据自己的配置决定是否继续懒加载
-          <code>toolbar</code>，toolbar 再统一懒加载 <code>p-button</code>。
+          页面只持有 <code>component id</code> 和配置，直接通过 <code>&lt;component is="..."&gt;</code> 声明式渲染。
+          table 会根据自己的配置决定是否继续懒加载 <code>toolbar</code>，toolbar 再统一懒加载 <code>p-button</code>。
           <code>p-button</code> 内部会根据类型再决定加载文字按钮还是图标按钮文件。按钮点击时只知道
           <code>eventId</code>，runtime 会动态导入事件模块并执行对应方法。
         </p>
@@ -57,7 +82,63 @@ interface TableScene {
         </div>
 
         <div class="actions-row">
-          <button nz-button nzType="primary" (click)="reloadAll()">重新加载所有 table</button>
+          <button nz-button nzType="primary" (click)="reloadAll()">重新加载所有 component 场景</button>
+        </div>
+      </nz-card>
+
+      <nz-card nzTitle="最小使用示例" nzSize="small" class="example-card">
+        <p nz-typography>
+          下面这个例子不需要手动调用 <code>RenderService</code>，模板里直接写一个
+          <code>&lt;component is="..."&gt;</code> 就能按 <code>is</code> 异步解析并渲染组件。
+        </p>
+
+        <pre class="payload-block">{{ componentUsageSnippet }}</pre>
+
+        <div class="example-preview">
+          <component
+            is="user-profile-card"
+            [props]="{ userId: 'u001' }"
+            source="runtime-demo:example-user-profile"
+          ></component>
+        </div>
+      </nz-card>
+
+      <nz-card nzTitle="插槽式状态定制" nzSize="small" class="example-card">
+        <p nz-typography>
+          这个例子展示了 Angular 里最接近 Vue slot 的写法。你可以通过
+          <code>componentLoading</code>、<code>componentError</code>、<code>componentEmpty</code>
+          覆盖默认状态展示。
+        </p>
+
+        <pre class="payload-block">{{ componentSlotUsageSnippet }}</pre>
+
+        <div class="example-preview">
+          <component
+            [is]="COMPONENT_ID.runtimeTable"
+            [props]="{ config: scenes[0].config }"
+            [key]="slotExampleKey()"
+            source="runtime-demo:slot-example"
+          >
+            <ng-template componentLoading let-is="is">
+              <div class="slot-state">
+                <nz-tag nzColor="processing">自定义 loading: {{ is }}</nz-tag>
+              </div>
+            </ng-template>
+
+            <ng-template componentError let-error="error">
+              <nz-alert nzType="error" [nzDescription]="'自定义错误: ' + error" nzShowIcon></nz-alert>
+            </ng-template>
+
+            <ng-template componentEmpty let-is="is">
+              <div class="slot-state">
+                <nz-tag nzColor="default">component {{ is }} 当前为空</nz-tag>
+              </div>
+            </ng-template>
+          </component>
+        </div>
+
+        <div class="actions-row">
+          <button nz-button nzType="default" (click)="reloadSlotExample()">重新触发 slot 示例</button>
         </div>
       </nz-card>
 
@@ -68,20 +149,19 @@ interface TableScene {
             <pre class="payload-block">{{ scene.config | json }}</pre>
 
             <div class="actions-row">
-              <button nz-button nzType="primary" [nzLoading]="loadingMap()[scene.key]" (click)="loadScene(scene)">
-                加载 table
+              <button nz-button nzType="primary" (click)="loadScene(scene)">
+                {{ activeSceneMap()[scene.key] ? '重新加载 table' : '加载 table' }}
               </button>
             </div>
 
-            @if (errorMap()[scene.key]; as errorText) {
-              <nz-alert nzType="error" [nzDescription]="errorText" nzShowIcon></nz-alert>
-            }
-
-            @if (componentMap()[scene.key]; as runtimeTable) {
+            @if (activeSceneMap()[scene.key]) {
               <div class="runtime-slot">
-                <ng-container
-                  *ngComponentOutlet="runtimeTable.component; inputs: runtimeTable.input"
-                ></ng-container>
+                <component
+                  [is]="COMPONENT_ID.runtimeTable"
+                  [props]="{ config: scene.config }"
+                  [source]="'runtime-demo:' + scene.key"
+                  [key]="componentKeyMap()[scene.key] ?? 0"
+                ></component>
               </div>
             } @else {
               <nz-empty nzNotFoundContent="点击“加载 table”后，由 runtime 解析 table 组件"></nz-empty>
@@ -97,6 +177,8 @@ interface TableScene {
 export class RuntimeDemoComponent {
   protected readonly COMPONENT_ID = COMPONENT_ID;
   protected readonly EVENT_ID = EVENT_ID;
+  protected readonly componentUsageSnippet = COMPONENT_USAGE_SNIPPET;
+  protected readonly componentSlotUsageSnippet = COMPONENT_SLOT_USAGE_SNIPPET;
   protected readonly scenes: ReadonlyArray<TableScene> = [
     {
       key: 'orders-text-toolbar',
@@ -207,13 +289,9 @@ export class RuntimeDemoComponent {
       }
     }
   ];
-  protected readonly componentMap = signal<
-    Partial<Record<string, ComponentRenderResponse<typeof COMPONENT_ID.runtimeTable> | null>>
-  >({});
-  protected readonly loadingMap = signal<Partial<Record<string, boolean>>>({});
-  protected readonly errorMap = signal<Partial<Record<string, string | undefined>>>({});
-
-  private readonly renderService = inject(RenderService);
+  protected readonly activeSceneMap = signal<Partial<Record<string, boolean>>>({});
+  protected readonly componentKeyMap = signal<Partial<Record<string, number>>>({});
+  protected readonly slotExampleKey = signal(0);
 
   protected reloadAll(): void {
     for (const scene of this.scenes) {
@@ -222,57 +300,17 @@ export class RuntimeDemoComponent {
   }
 
   protected loadScene(scene: TableScene): void {
-    this.patchLoading(scene.key, true);
-
-    this.renderService
-      .render$({
-        componentId: COMPONENT_ID.runtimeTable,
-        input: {
-          config: scene.config
-        },
-        context: createRuntimeContext(`runtime-demo:${scene.key}`)
-      })
-      .pipe(
-        take(1),
-        finalize(() => this.patchLoading(scene.key, false))
-      )
-      .subscribe({
-        next: (response) => {
-          this.componentMap.update((state) => ({
-            ...state,
-            [scene.key]: response
-          }));
-          this.patchError(scene.key, undefined);
-        },
-        error: (error: unknown) => {
-          this.componentMap.update((state) => ({
-            ...state,
-            [scene.key]: null
-          }));
-          this.patchError(scene.key, this.toErrorMessage(error));
-        }
-      });
-  }
-
-  private patchLoading(key: string, value: boolean): void {
-    this.loadingMap.update((state) => ({
+    this.activeSceneMap.update((state) => ({
       ...state,
-      [key]: value
+      [scene.key]: true
+    }));
+    this.componentKeyMap.update((state) => ({
+      ...state,
+      [scene.key]: (state[scene.key] ?? 0) + 1
     }));
   }
 
-  private patchError(key: string, value: string | undefined): void {
-    this.errorMap.update((state) => ({
-      ...state,
-      [key]: value
-    }));
-  }
-
-  private toErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-      return error.message;
-    }
-
-    return String(error);
+  protected reloadSlotExample(): void {
+    this.slotExampleKey.update((value) => value + 1);
   }
 }
